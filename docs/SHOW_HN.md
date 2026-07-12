@@ -31,7 +31,7 @@ Benchmark (5 classes, 4k cal / 4k test): naive top-1 coverage is just its accura
 95%→94.3%, 90%→88.6% — and the set size tells you how much the model actually knows
 at that confidence.
 
-Repo, tests, benchmark: <REPO_URL>
+Repo, tests, benchmark: https://github.com/ss1738/certain
 
 Honest scope: `ConformalClassifier` carries the real finite-sample coverage
 guarantee (assuming exchangeability). `SelectiveAnswerer` controls *empirical*
