@@ -17,8 +17,8 @@ from certain import ConformalClassifier
 clf = ConformalClassifier(alpha=0.1)             # want 90% coverage
 clf.calibrate(cal_scores, cal_labels)            # a held-out calibration split
 
-clf.predict_set({"cat": 0.9, "dog": 0.05, "fox": 0.05})   # {"cat"}          -> confident, answer
-clf.predict_set({"cat": 0.4, "dog": 0.35, "fox": 0.25})   # {"cat","dog","fox"} -> unsure, flag
+clf.predict_set({"cat": 0.9, "dog": 0.05, "fox": 0.05})   # a singleton set -> confident, answer
+clf.predict_set({"cat": 0.4, "dog": 0.35, "fox": 0.25})   # a larger set    -> unsure, flag
 ```
 
 A singleton set means the model is confident enough to trust; a larger set is a
