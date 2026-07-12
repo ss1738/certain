@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "certain-conformal"
+version = "0.1.0"
+description = "Calibrated confidence and abstention for model outputs -- conformal prediction sets with a coverage guarantee, plus selective answering. Zero dependencies."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Satyawan Singh" }]
+keywords = ["conformal", "uncertainty", "calibration", "abstention", "selective-prediction", "llm", "coverage"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.4"]
+
+[project.urls]
+Homepage = "https://github.com/ss1738/certain"
+Issues = "https://github.com/ss1738/certain/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["certain"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
