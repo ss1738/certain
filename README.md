@@ -90,6 +90,15 @@ Python ≥ 3.9, no runtime dependencies.
 Vovk, Gammerman & Shafer, *Algorithmic Learning in a Random World*; Angelopoulos &
 Bates, *A Gentle Introduction to Conformal Prediction* (2021).
 
+## Related
+
+Part of a set of four small libraries for not trusting an unverified LLM output:
+
+- [stigma](https://github.com/ss1738/stigma): aggregate many models with consensus that learns which to trust
+- [disco](https://github.com/ss1738/disco): search with a verifier (an open FunSearch)
+- [groundkit](https://github.com/ss1738/groundkit): ground a model's output against a source
+- **certain** (this repo): calibrate confidence and abstain
+
 ## License
 
 MIT © 2026 Satyawan Singh
