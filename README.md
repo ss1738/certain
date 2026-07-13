@@ -31,7 +31,7 @@ Modern models are miscalibrated and usually overconfident: a "0.9" is not a 90%
 chance of being right, and taking the top label gives you whatever the model's
 accuracy happens to be, with no guarantee. Conformal prediction fixes the *output*
 without retraining the model: from a small calibration set it computes a threshold
-so that the returned set covers the truth at exactly your target rate.
+so that the returned set covers the truth at least at your target rate.
 
 ## Benchmark: the guarantee holds
 

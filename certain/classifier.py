@@ -68,7 +68,12 @@ class ConformalClassifier:
         return {label for label, p in probs.items() if (1.0 - p) <= self.qhat}
 
     def predict(self, scores: Mapping[Hashable, float]) -> Any:
-        """The single most likely label (ignores the set / guarantee)."""
+        """The single most likely label (ignores the set / guarantee).
+
+        Returns ``None`` for an empty score mapping.
+        """
+        if not scores:
+            return None
         return max(_normalise(scores).items(), key=lambda kv: kv[1])[0]
 
     def evaluate(

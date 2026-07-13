@@ -13,7 +13,7 @@ finite-sample coverage guarantee) or add a Learn-then-Test correction.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Sequence
 
 
@@ -23,10 +23,12 @@ class SelectiveAnswerer:
 
     Args:
         target_error: Maximum tolerated error rate among answered items.
+
+    ``threshold`` is fitted by :meth:`calibrate`, not set at construction.
     """
 
     target_error: float = 0.05
-    threshold: float | None = None
+    threshold: float | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.target_error <= 1.0):
@@ -38,19 +40,26 @@ class SelectiveAnswerer:
         """Fit the lowest threshold keeping calibration error <= target_error.
 
         Lower threshold = more items answered, so we take the most permissive
-        threshold that still satisfies the target -- maximising coverage.
+        threshold that still satisfies the target -- maximising coverage. The
+        cumulative error is only checked at distinct confidence *levels* (after
+        including every tied item at that level), so a later ``answer`` using
+        ``confidence >= threshold`` admits exactly the set that was counted.
         """
         if len(confidences) != len(correct):
             raise ValueError("confidences and correct must be the same length")
-        # Sort most-confident first; sweep, tracking cumulative error.
         order = sorted(zip(confidences, correct), key=lambda x: -x[0])
+        n = len(order)
         wrong = 0
+        i = 0
         chosen: float | None = None
-        for i, (conf, ok) in enumerate(order, start=1):
-            if not ok:
-                wrong += 1
+        while i < n:
+            level = order[i][0]
+            while i < n and order[i][0] == level:  # include the whole tied group
+                if not order[i][1]:
+                    wrong += 1
+                i += 1
             if wrong / i <= self.target_error:
-                chosen = conf  # can safely answer down to this confidence
+                chosen = level  # answering everything >= level meets the target
         # None found -> threshold above any confidence (abstain on everything).
         self.threshold = chosen if chosen is not None else float("inf")
         return self.threshold

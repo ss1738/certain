@@ -71,17 +71,34 @@ def test_predict_returns_top_label():
 
 def test_selective_controls_error_on_answered():
     rng = random.Random(2)
-    # Confidence correlates with correctness.
-    confidences, correct = [], []
-    for _ in range(3000):
-        conf = rng.random()
-        correct.append(rng.random() < 0.4 + 0.55 * conf)  # more confident -> more right
-        confidences.append(conf)
+
+    def synth(n):
+        confs, ok = [], []
+        for _ in range(n):
+            conf = rng.random()
+            ok.append(rng.random() < 0.4 + 0.55 * conf)  # more confident -> more right
+            confs.append(conf)
+        return confs, ok
+
+    cal_c, cal_ok = synth(3000)
+    test_c, test_ok = synth(3000)
     ans = SelectiveAnswerer(target_error=0.1)
-    ans.calibrate(confidences, correct)
-    stats = ans.evaluate(confidences, correct)
+    ans.calibrate(cal_c, cal_ok)
+    stats = ans.evaluate(test_c, test_ok)  # held-out split, not the calibration data
     assert stats["error_on_answered"] <= 0.15  # near target, with finite-sample slack
     assert 0.0 < stats["coverage"] <= 1.0
+
+
+def test_selective_is_tie_safe():
+    # Tied confidences must not let answered-error exceed the target in-sample.
+    # The naive item-by-item sweep would pick threshold 0.5 and answer all 10
+    # (error 0.5); the level-based sweep abstains instead.
+    ans = SelectiveAnswerer(target_error=0.1)
+    conf = [0.5] * 10
+    correct = [True] * 5 + [False] * 5
+    ans.calibrate(conf, correct)
+    stats = ans.evaluate(conf, correct)
+    assert stats["error_on_answered"] <= 0.1
 
 
 def test_selective_abstains_when_impossible():
