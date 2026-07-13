@@ -13,6 +13,7 @@ finite-sample coverage guarantee) or add a Learn-then-Test correction.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Sequence
 
@@ -47,6 +48,9 @@ class SelectiveAnswerer:
         """
         if len(confidences) != len(correct):
             raise ValueError("confidences and correct must be the same length")
+        if any(math.isnan(c) for c in confidences):
+            # NaN breaks the tie-grouping equality test and would loop forever.
+            raise ValueError("confidences must not contain NaN")
         order = sorted(zip(confidences, correct), key=lambda x: -x[0])
         n = len(order)
         wrong = 0
