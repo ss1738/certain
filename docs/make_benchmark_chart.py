@@ -16,21 +16,22 @@ import sys
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
 sys.path.insert(0, _ROOT)
 sys.path.insert(0, os.path.join(_ROOT, "benchmarks"))
 
-from bench_coverage import (  # noqa: E402
+from bench_coverage import (
     ALPHAS,
-    N,
     REPEATS,
+    N,
     mean,
     synth,
     top1_coverage,
 )
-from certain import ConformalClassifier  # noqa: E402
+
+from certain import ConformalClassifier
 
 
 def collect():

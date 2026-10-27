@@ -21,7 +21,9 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "ruff>=0.4"]
+# ruff is pinned to a minor range: CI runs `ruff check .`, and an unpinned
+# `ruff>=0.4` silently picks up new default rules on release and breaks the build.
+dev = ["pytest>=7.0", "ruff>=0.17,<0.18"]
 
 [project.urls]
 Homepage = "https://github.com/ss1738/certain"
@@ -33,3 +35,7 @@ packages = ["certain"]
 [tool.ruff]
 line-length = 88
 target-version = "py39"
+
+[tool.ruff.lint.per-file-ignores]
+# The chart script must extend sys.path before importing the benchmark.
+"docs/make_benchmark_chart.py" = ["E402"]

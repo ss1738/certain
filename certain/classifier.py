@@ -14,7 +14,8 @@ Prediction" (2021).
 from __future__ import annotations
 
 import math
-from typing import Any, Hashable, Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
+from typing import Any
 
 
 def _normalise(scores: Mapping[Hashable, float]) -> dict[Hashable, float]:
