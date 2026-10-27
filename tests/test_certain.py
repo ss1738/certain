@@ -8,7 +8,9 @@ from certain import (
     AdaptiveConformalClassifier,
     ConformalClassifier,
     ConformalRiskController,
+    MondrianConformalClassifier,
     SelectiveAnswerer,
+    training_conditional_bound,
 )
 
 CLASSES = ["a", "b", "c", "d", "e"]
@@ -287,3 +289,119 @@ def test_adaptive_validation():
         AdaptiveConformalClassifier().predict_set({"a": 1.0})
     with pytest.raises(ValueError):
         AdaptiveConformalClassifier().calibrate([{"a": 1.0}], ["a", "b"])
+
+
+# --- Mondrian group-conditional conformal -----------------------------------
+
+
+def _grouped(n_easy, n_hard, rng):
+    """A majority group the scorer handles well and a minority it does not."""
+    easy = _synth(n_easy, rng, sharpness=3.0)
+    hard = _synth(n_hard, rng, sharpness=0.15)
+    return (
+        easy[0] + hard[0],
+        easy[1] + hard[1],
+        ["easy"] * n_easy + ["hard"] * n_hard,
+    )
+
+
+def test_mondrian_covers_each_group_where_marginal_hides_a_failure():
+    """The whole point: a marginal number can look fine while a group is failing."""
+    rng = random.Random(0)
+    cal = _grouped(1800, 200, rng)
+    test = _grouped(1800, 200, rng)
+
+    mondrian = MondrianConformalClassifier(alpha=0.1)
+    mondrian.calibrate(*cal)
+    res = mondrian.evaluate(*test)
+    assert res["worst_group_coverage"] > 0.85          # measured ~0.90
+
+    marginal = ConformalClassifier(alpha=0.1)
+    marginal.calibrate(cal[0], cal[1])
+    hard_hits = [
+        1 if y in marginal.predict_set(row) else 0
+        for row, y, g in zip(*test) if g == "hard"
+    ]
+    hard_coverage = sum(hard_hits) / len(hard_hits)
+    assert hard_coverage < 0.6                          # measured ~0.47
+    # ...while the marginal headline looks healthy.
+    assert marginal.evaluate(test[0], test[1])["coverage"] > 0.85
+
+
+def test_mondrian_flags_vacuous_small_groups():
+    rng = random.Random(2)
+    rows, labels = _synth(200, rng)
+    groups = ["big"] * 195 + ["tiny"] * 5      # tiny < ceil(1/0.1)-1 = 9
+    m = MondrianConformalClassifier(alpha=0.1)
+    m.calibrate(rows, labels, groups)
+    assert m.min_calibration_size == 9
+    table = {r["group"]: r for r in m.calibration_table()}
+    assert table["tiny"]["vacuous"] is True
+    assert table["big"]["vacuous"] is False
+    # A tiny group's threshold admits everything, so it promises nothing useful.
+    assert m.predict_set({c: random.random() for c in CLASSES}, "tiny") == set(CLASSES)
+    # And its honest lower bound says so.
+    assert table["tiny"]["coverage_lower_bound"] == 0.0
+    assert table["big"]["coverage_lower_bound"] > 0.8
+
+
+def test_mondrian_refuses_unseen_group():
+    rng = random.Random(3)
+    rows, labels = _synth(100, rng)
+    m = MondrianConformalClassifier(alpha=0.1)
+    m.calibrate(rows, labels, ["x"] * 100)
+    with pytest.raises(KeyError, match="no calibration data for group"):
+        m.predict_set({c: 1.0 for c in CLASSES}, "unseen")
+    # evaluate counts them rather than scoring them against someone else.
+    res = m.evaluate(rows, labels, ["unseen"] * 100)
+    assert res["skipped_unknown_group"] == 100
+
+
+def test_mondrian_validation():
+    with pytest.raises(ValueError):
+        MondrianConformalClassifier(alpha=1.0)
+    with pytest.raises(ValueError):
+        MondrianConformalClassifier().calibrate([{"a": 1.0}], ["a"], ["g", "h"])
+    with pytest.raises(RuntimeError):
+        MondrianConformalClassifier().predict_set({"a": 1.0}, "g")
+    with pytest.raises(RuntimeError):
+        MondrianConformalClassifier().calibration_table()
+
+
+# --- Training-conditional bound ---------------------------------------------
+
+
+def test_training_conditional_bound_matches_simulation():
+    """Coverage | calibration ~ Beta(k, n+1-k); the bound must track reality."""
+    alpha = 0.1
+    for n, floor in ((100, 0.80), (500, 0.86)):
+        covs = []
+        for s in range(150):
+            rng = random.Random(500 + s)
+            c = ConformalClassifier(alpha=alpha)
+            c.calibrate(*_synth(n, rng))
+            covs.append(c.evaluate(*_synth(1500, rng))["coverage"])
+        bound = training_conditional_bound(n, alpha, confidence=0.95)
+        assert bound > floor
+        assert bound < 1 - alpha            # a bound, not the target itself
+        # At most a few of 150 draws should fall below a 95% lower bound.
+        assert sum(1 for c_ in covs if c_ < bound) <= 20
+
+
+def test_training_conditional_bound_tightens_with_n():
+    prev = 0.0
+    for n in (20, 100, 1000, 10000):
+        b = training_conditional_bound(n, 0.1, 0.95)
+        assert b > prev
+        prev = b
+    assert training_conditional_bound(10000, 0.1, 0.95) < 0.9
+    assert training_conditional_bound(5, 0.1, 0.95) == 0.0   # below the floor
+
+
+def test_training_conditional_bound_validation():
+    with pytest.raises(ValueError):
+        training_conditional_bound(0, 0.1)
+    with pytest.raises(ValueError):
+        training_conditional_bound(100, 0.0)
+    with pytest.raises(ValueError):
+        training_conditional_bound(100, 0.1, confidence=1.0)

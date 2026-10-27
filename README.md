@@ -6,9 +6,10 @@
 **Calibrated confidence and abstention for model outputs.** A softmax number
 isn't a probability you can trust. certain turns any score into a **prediction set
 with a coverage guarantee** (the true label is inside with probability >= 1-alpha,
-distribution-free), a set that **keeps covering when the data drifts**, a
-**bound on any monotone loss** rather than just miscoverage, or an
-**answer/abstain gate** with a controlled error rate. Model-agnostic, works over
+distribution-free), a guarantee that **holds within each group** rather than only
+on average, a set that **keeps covering when the data drifts**, a **bound on any
+monotone loss** rather than just miscoverage, or an **answer/abstain gate** with
+a controlled error rate. Model-agnostic, works over
 LLM logprobs, judge scores, classifier probabilities, retrieval scores. Pure
 Python, zero dependencies.
 
@@ -77,6 +78,65 @@ distribution-free bound use `ConformalClassifier`, which carries the finite-samp
 coverage guarantee, or `ConformalRiskController` below, which bounds the loss you
 actually care about.
 
+## Groups: an average is not a promise to anyone
+
+A marginal guarantee is an average over everyone, and it is satisfied by a model
+that covers your largest group generously and a small one badly. On a 3-class
+problem where the scorer handles a 1,800-item majority group well and a 200-item
+minority group poorly, at alpha=0.1:
+
+| | Reported overall | `easy` group | `hard` group |
+|---|---|---|---|
+| `ConformalClassifier` (marginal) | 89.2% | 93.9% | **47.0%** |
+| `MondrianConformalClassifier` | 89.9% | 89.9% | **90.0%** |
+
+The marginal headline of 89.2% looks like the guarantee holding. The minority
+group is getting a little over half the coverage it was promised, and no number
+in that row says so. Mondrian fits a threshold per group, so
+`P(Y in C(X) | group = g) >= 1 - alpha` for every group, and the hard group pays
+in set size (2.57 vs 0.97) where it previously paid in silent miscoverage.
+
+```python
+from certain import MondrianConformalClassifier
+
+clf = MondrianConformalClassifier(alpha=0.1)
+clf.calibrate(cal_scores, cal_labels, cal_groups)
+clf.predict_set(scores, group="tenant-a")
+
+clf.calibration_table()     # per-group audit rows
+clf.evaluate(scores, labels, groups)["worst_group_coverage"]
+```
+
+Two things it will not do quietly. A group with too little calibration data gets a
+vacuous threshold that admits every label, and `calibration_table()` marks it
+`vacuous` rather than letting it pass as calibrated. An unseen group raises
+instead of borrowing another group's threshold, because the conditional guarantee
+does not extend to it.
+
+The guarantee is conditional on the groups you declare and nothing else. Choosing
+the grouping is a modelling decision: a grouping that misses the axis along which
+the model actually degrades will look reassuring and mean little.
+
+### What one calibration set is worth
+
+`calibration_table()` reports a `coverage_lower_bound` per group, because
+"coverage 0.93 from 40 examples" is not the statement it appears to be. For
+continuous scores, coverage conditional on the calibration set is exactly
+`Beta(k, n+1-k)` with `k = ceil((n+1)(1-alpha))`, so a lower confidence bound on
+it is a Beta quantile:
+
+```python
+from certain import training_conditional_bound
+
+training_conditional_bound(n=40,   alpha=0.1)   # 0.817
+training_conditional_bound(n=2000, alpha=0.1)   # 0.889
+```
+
+With 40 calibration points the marginal promise is 90%, but with 95% confidence
+over the calibration draw this particular fitted predictor covers at least 81.7%.
+Verified against 400 simulated calibration draws per size: the empirical 5th
+percentile tracks the bound to within test-set noise.
+
 ## Drift: coverage that survives non-exchangeable traffic
 
 Split conformal assumes exchangeability. Production violates it the moment
@@ -138,6 +198,11 @@ is not.
 
 - **`ConformalClassifier(alpha=0.1)`**: `.calibrate(score_rows, labels)`,
   `.predict_set(scores)`, `.predict(scores)`, `.evaluate(score_rows, labels)`.
+- **`MondrianConformalClassifier(alpha=0.1)`**: `.calibrate(score_rows, labels,
+  groups)`, `.predict_set(scores, group)`, `.calibration_table(confidence=0.95)`,
+  `.evaluate(...)`, `.min_calibration_size`.
+- **`training_conditional_bound(n, alpha=0.1, confidence=0.95)`**: what one
+  calibration set of size `n` is worth.
 - **`AdaptiveConformalClassifier(alpha=0.1, gamma=0.01)`**: `.calibrate(...)`,
   `.predict_set(scores)`, `.record(covered)`, `.observe(scores, label)`,
   `.error_rate`, `.alpha_t`, `.evaluate(...)`.
@@ -173,7 +238,9 @@ Bates, *A Gentle Introduction to Conformal Prediction* (2021); Gibbs & Candes,
 *Adaptive Conformal Inference Under Distribution Shift*
 ([arXiv:2106.00170](https://arxiv.org/abs/2106.00170), NeurIPS 2021); Angelopoulos,
 Bates, Fisch, Lei & Schuster, *Conformal Risk Control*
-([arXiv:2208.02814](https://arxiv.org/abs/2208.02814)).
+([arXiv:2208.02814](https://arxiv.org/abs/2208.02814)); Vovk, *Conditional
+validity of inductive conformal predictors* (ACML 2012), on Mondrian and
+training-conditional validity.
 
 ## Related
 
