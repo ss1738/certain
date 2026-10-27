@@ -26,17 +26,21 @@ that:
 It's model-agnostic, feed it LLM logprobs, judge scores, classifier probabilities,
 retrieval scores.
 
-Benchmark (5 classes, 4k cal / 4k test): naive top-1 coverage is just its accuracy,
-**78.2% with no guarantee**. Conformal coverage tracks the target, 99%→98.6%,
-95%→94.3%, 90%→88.6%, and the set size tells you how much the model actually knows
-at that confidence.
+Benchmark (5 classes, 4k cal / 4k test, averaged over 50 independent calibration
+splits): naive top-1 coverage is just its accuracy, **79.1% with no guarantee**.
+Conformal mean coverage tracks the target, 99%→99.0%, 95%→95.0%, 90%→90.0%, and the
+set size tells you how much the model actually knows at that confidence.
 
 Repo, tests, benchmark: https://github.com/ss1738/certain
 
 Honest scope: `ConformalClassifier` carries the real finite-sample coverage
-guarantee (assuming exchangeability). `SelectiveAnswerer` controls *empirical*
-error and holds approximately on exchangeable test data; for a strict bound use the
-conformal sets or add a Learn-then-Test correction. Feedback welcome.
+guarantee (assuming exchangeability), and that guarantee is *marginal*, holding in
+expectation over the calibration draw rather than on every run, which is why the
+benchmark averages over 50 splits instead of reporting one seed. Small alpha needs
+a calibration set to match: `alpha=0.01` needs at least 99 examples or the quantile
+saturates and every set contains every label. `SelectiveAnswerer` controls
+*empirical* error and holds approximately on exchangeable test data; for a strict
+bound use the conformal sets or add a Learn-then-Test correction. Feedback welcome.
 
 ## First comment
 

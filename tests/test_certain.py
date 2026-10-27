@@ -113,3 +113,48 @@ def test_selective_validation():
         SelectiveAnswerer(target_error=1.5)
     with pytest.raises(RuntimeError):
         SelectiveAnswerer().answer(0.5)
+
+
+def test_small_alpha_needs_enough_calibration():
+    """A target of 1-alpha needs >= ceil(1/alpha)-1 calibration examples.
+
+    Pins the documented caveat in README "Calibration size and small alpha".
+    Below that size the conformal quantile saturates at 1.0 and every set holds
+    every label, so coverage is trivially 1.0 and the set carries no information.
+    """
+    import math
+
+    rng = random.Random(0)
+    for alpha in (0.2, 0.1, 0.05, 0.01):
+        n_min = math.ceil(1 / alpha) - 1
+
+        rows, labels = _synth(n_min - 1, rng)
+        assert ConformalClassifier(alpha=alpha).calibrate(rows, labels) == 1.0
+
+        rows, labels = _synth(n_min, rng)
+        assert ConformalClassifier(alpha=alpha).calibrate(rows, labels) < 1.0
+
+
+def test_vacuous_sets_below_minimum_calibration_size():
+    """Under-calibrated at alpha=0.01: every label is in every set."""
+    rng = random.Random(1)
+    rows, labels = _synth(50, rng)  # < 99, the minimum for alpha=0.01
+    clf = ConformalClassifier(alpha=0.01)
+    clf.calibrate(rows, labels)
+    assert clf.predict_set({c: rng.random() for c in CLASSES}) == set(CLASSES)
+
+
+def test_coverage_guarantee_holds_on_average():
+    """The guarantee is marginal: it holds in expectation, not per run.
+
+    A single split lands either side of the target, so this averages over
+    independent calibration draws, which is what the theory actually bounds.
+    """
+    alpha = 0.1
+    covs = []
+    for seed in range(20):
+        rng = random.Random(100 + seed)
+        clf = ConformalClassifier(alpha=alpha)
+        clf.calibrate(*_synth(600, rng))
+        covs.append(clf.evaluate(*_synth(600, rng))["coverage"])
+    assert sum(covs) / len(covs) >= 1 - alpha

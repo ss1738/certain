@@ -1,7 +1,6 @@
 # certain
 
 [![CI](https://github.com/ss1738/certain/actions/workflows/ci.yml/badge.svg)](https://github.com/ss1738/certain/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/certain-conformal)](https://pypi.org/project/certain-conformal/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Calibrated confidence and abstention for model outputs.** A softmax number
@@ -35,18 +34,26 @@ so that the returned set covers the truth at least at your target rate.
 
 ## Benchmark: the guarantee holds
 
-`benchmarks/bench_coverage.py`: 5-class problem, 4,000 calibration / 4,000 test:
+`benchmarks/bench_coverage.py`: 5-class problem, 4,000 calibration / 4,000 test,
+repeated over 50 independent calibration splits.
 
-| Target coverage | Empirical | Avg set size |
-|---|---|---|
-| 99% | 98.6% | 3.96 |
-| 95% | 94.3% | 2.71 |
-| 90% | 88.6% | 1.84 |
-| 80% | 78.6% | 1.12 |
+| Target coverage | Mean empirical | Per-run range | Avg set size |
+|---|---|---|---|
+| 99% | 99.0% | 98.2% to 99.4% | 4.01 |
+| 95% | 95.0% | 93.9% to 96.0% | 2.79 |
+| 90% | 90.0% | 88.0% to 91.6% | 1.91 |
+| 80% | 80.1% | 78.1% to 81.9% | 1.13 |
 
 ![certain: conformal coverage tracks the target, naive top-1 does not](docs/benchmark.png)
 
-Naive top-1 coverage is just its accuracy, **78.2%, with no guarantee**.
+The guarantee is **marginal**: coverage is at least `1 - alpha` in expectation over
+the draw of the calibration set, not on every individual run. The mean column is
+the quantity the theory bounds and it lands on the target; the range column shows
+single runs falling either side, which is expected. A single split is not evidence
+for or against the guarantee, so the benchmark averages rather than reporting one
+seed. Regenerate the chart with `python docs/make_benchmark_chart.py`.
+
+Naive top-1 coverage is just its accuracy, **79.1%, with no guarantee**.
 Conformal coverage tracks the target you ask for, and the set size tells you how
 much the model actually knows at that confidence level.
 
@@ -77,13 +84,22 @@ coverage guarantee.
 Scores are any non-negative per-label values (probabilities, exponentiated
 logprobs, judge scores); they're normalised internally.
 
+**Calibration size and small alpha.** A target of `1 - alpha` needs at least
+`ceil(1/alpha) - 1` calibration examples before the conformal quantile is finite.
+Below that, `qhat` saturates at 1.0 and every set contains every label: coverage is
+trivially 1.0 and the set is useless. `alpha=0.01` therefore needs **>= 99**
+calibration examples, `alpha=0.05` needs >= 19. The constructor accepts any alpha in
+(0, 1), so this is on the caller to respect.
+
 ## Install
 
 ```bash
-pip install certain-conformal      # or: pip install -e . from a clone
+git clone https://github.com/ss1738/certain
+cd certain && pip install -e .
 ```
 
-Python ≥ 3.9, no runtime dependencies.
+Not published on PyPI; install from the clone. Python ≥ 3.9, no runtime
+dependencies.
 
 ## References
 
