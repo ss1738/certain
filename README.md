@@ -224,12 +224,19 @@ calibration examples, `alpha=0.05` needs >= 19. The constructor accepts any alph
 ## Install
 
 ```bash
+pip install certain-conformal
+```
+
+```python
+import certain           # the import name is unchanged
+```
+
+Python ≥ 3.9, no runtime dependencies. From a clone instead:
+
+```bash
 git clone https://github.com/ss1738/certain
 cd certain && pip install -e .
 ```
-
-Not published on PyPI; install from the clone. Python ≥ 3.9, no runtime
-dependencies.
 
 ## References
 
