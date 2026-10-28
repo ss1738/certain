@@ -1,12 +1,20 @@
 name: Publish to PyPI
 
-# Publishes on a GitHub Release. Uses PyPI Trusted Publishing (OIDC) -- configure
-# the publisher once at https://pypi.org/manage/project/certain-conformal/settings/publishing/
-# (workflow: publish.yml, environment: pypi). No API token needed.
+# Publishes on a GitHub Release, using PyPI Trusted Publishing (OIDC).
+#
+# FIRST PUBLISH: the project does not exist on PyPI yet, so its settings page
+# 404s. Add a *pending publisher* instead, at
+#   https://pypi.org/manage/account/publishing/
+# with: project name certain-conformal, owner ss1738, repository certain,
+# workflow filename publish.yml, environment pypi.
+# Publishing the first GitHub Release then creates the project. Afterwards it is
+# managed at https://pypi.org/manage/project/certain-conformal/settings/publishing/
+# No API token is involved at any point.
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   pypi:
